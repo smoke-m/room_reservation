@@ -60,9 +60,12 @@ async def get_all_reservations(
 async def remove_reservation(
         reservation_id: int,
         session: AsyncSession = Depends(get_async_session),
+        # Новая зависимость.
+        user: User = Depends(current_user),
 ):
     reservation = await check_reservation_before_edit(
-        reservation_id, session
+        # Дописываем передачу user в валидатор.
+        reservation_id, session, user
     )
     reservation = await reservation_crud.remove(
         reservation, session
@@ -75,10 +78,12 @@ async def update_reservation(
         reservation_id: int,
         obj_in: ReservationUpdate,
         session: AsyncSession = Depends(get_async_session),
+        # Новая зависимость.
+        user: User = Depends(current_user),
 ):
     # Проверяем, что такой объект бронирования вообще существует.
     reservation = await check_reservation_before_edit(
-        reservation_id, session
+        reservation_id, session, user
     )
     # Проверяем, что нет пересечений с другими бронированиями.
     await check_reservation_intersections(
