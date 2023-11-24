@@ -7,7 +7,9 @@ from app.api.validators import (
     check_reservation_before_edit,
 )
 from app.core.db import get_async_session
+from app.core.user import current_user, current_superuser
 from app.crud.reservation import reservation_crud
+from app.models import User
 from app.schemas.reservation import (
     ReservationCreate, ReservationDB, ReservationUpdate
 )
@@ -26,6 +28,8 @@ router = APIRouter()
 async def create_new_reservation(
     reservation: ReservationCreate,
     session: AsyncSession = Depends(get_async_session),
+    # Получаем текущего пользователя и сохраняем в переменную user.
+    user: User = Depends(current_user),
 ):
     await check_meeting_room_exists(reservation.meetingroom_id, session)
     await check_reservation_intersections(
@@ -33,17 +37,19 @@ async def create_new_reservation(
         # аргументы должны быть переданы с указанием ключей.
         **reservation.dict(), session=session
     )
-    new_reservation = await reservation_crud.create(reservation, session)
+    new_reservation = await reservation_crud.create(reservation, session, user)
     return new_reservation
 
 
 @router.get(
     '/',
     response_model=list[ReservationDB],
+    dependencies=[Depends(current_superuser)],
 )
 async def get_all_reservations(
     session: AsyncSession = Depends(get_async_session),
 ):
+    """Только для суперюзеров."""
     return await reservation_crud.get_multi(session)
 
 
@@ -92,3 +98,23 @@ async def update_reservation(
         session=session,
     )
     return reservation
+
+
+@router.get(
+    '/my_reservations',
+    response_model=list[ReservationDB],
+    # Добавляем множество с полями, которые надо исключить из ответа.
+    response_model_exclude={'user_id'},
+)
+async def get_my_reservations(
+        session: AsyncSession = Depends(get_async_session),
+        # В этой зависимости получаем обычного пользователя, а не суперюзера.
+        user: User = Depends(current_user)
+):
+    # Сразу можно добавить докстринг для большей информативности.
+    """Получает список всех бронирований для текущего пользователя."""
+    # Вызываем созданный метод.
+    reservations = await reservation_crud.get_by_user(
+        session=session, user=user
+    )
+    return reservations

@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from typing import Optional
 
 from pydantic import BaseModel, Extra, Field, root_validator, validator
 
@@ -55,3 +56,5 @@ class ReservationCreate(ReservationUpdate):
 class ReservationDB(ReservationBase):
     id: int
     meetingroom_id: int
+    # Добавьте опциональное поле user_id.
+    user_id: Optional[int]
